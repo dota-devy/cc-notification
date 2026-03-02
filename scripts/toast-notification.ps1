@@ -72,7 +72,7 @@ function Send-ToastNotification {
         $EscMessage = [System.Security.SecurityElement]::Escape($Message)
 
         if ($CanFocus) {
-            $LaunchUri = "claude-notify://focus?pid=$TerminalPid"
+            $LaunchUri = "claude-notify://focus?pid=$TerminalPid&shellpid=$ShellPid"
             $EscLaunchUri = [System.Security.SecurityElement]::Escape($LaunchUri)
 
             $ToastXml = @"
@@ -161,9 +161,11 @@ function Find-ParentTerminal {
         "Code"
         "conhost"
     )
+    $ShellProcessNames = @("pwsh", "powershell", "bash", "cmd", "zsh", "fish", "wsl")
 
     $CurrentPid = $PID
     $Visited = @{}
+    $WalkPath = @()
 
     while ($CurrentPid -and $CurrentPid -ne 0 -and -not $Visited.ContainsKey($CurrentPid)) {
         $Visited[$CurrentPid] = $true
@@ -171,21 +173,36 @@ function Find-ParentTerminal {
         $Proc = Get-Process -Id $CurrentPid -ErrorAction SilentlyContinue
         if (-not $Proc) { break }
 
+        # Get parent PID via CIM (needed for walk path and tree traversal)
+        $CimProc = Get-CimInstance Win32_Process -Filter "ProcessId = $CurrentPid" -ErrorAction SilentlyContinue
+        if (-not $CimProc) { break }
+        $ParentPid = $CimProc.ParentProcessId
+
+        $WalkPath += @{ Pid = $CurrentPid; Name = $Proc.ProcessName; ParentPid = $ParentPid }
+
         if ($Proc.MainWindowHandle -ne [IntPtr]::Zero -and
             $TerminalProcessNames -contains $Proc.ProcessName) {
             Write-DebugLog "Found parent terminal: $($Proc.ProcessName) (PID $($Proc.Id))"
+
+            # Find the shell in our ancestry that is a direct child of this terminal
+            $ShellPid = 0
+            foreach ($Step in $WalkPath) {
+                if ($Step.ParentPid -eq $Proc.Id -and $ShellProcessNames -contains $Step.Name) {
+                    $ShellPid = $Step.Pid
+                    Write-DebugLog "Found ancestor shell: $($Step.Name) (PID $ShellPid) - direct child of terminal"
+                    break
+                }
+            }
+
             return @{
                 ProcessId = $Proc.Id
                 ProcessName = $Proc.ProcessName
                 MainWindowHandle = $Proc.MainWindowHandle
+                ShellPid = $ShellPid
             }
         }
 
-        # Get parent PID via CIM
-        $CimProc = Get-CimInstance Win32_Process -Filter "ProcessId = $CurrentPid" -ErrorAction SilentlyContinue
-        if (-not $CimProc) { break }
-
-        $CurrentPid = $CimProc.ParentProcessId
+        $CurrentPid = $ParentPid
     }
 
     Write-DebugLog "No parent terminal found in process tree"
@@ -356,9 +373,10 @@ if ($Title -ne "" -or $Message -ne "") {
 # Find the parent terminal for click-to-focus
 $Terminal = Find-ParentTerminal
 $TerminalPid = if ($Terminal) { $Terminal.ProcessId } else { 0 }
+$ShellPid = if ($Terminal) { $Terminal.ShellPid } else { 0 }
 
 # Main notification flow with clear fallback chain
-Write-DebugLog "Final notification - Title: '$FinalTitle', Message: '$FinalMessage', TerminalPID: $TerminalPid"
+Write-DebugLog "Final notification - Title: '$FinalTitle', Message: '$FinalMessage', TerminalPID: $TerminalPid, ShellPID: $ShellPid"
 
 # Try Toast notification first (primary method)
 if (Send-ToastNotification -Title $FinalTitle -Message $FinalMessage -TerminalPid $TerminalPid) {
