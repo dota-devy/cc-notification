@@ -21,7 +21,7 @@ $RegPath = "HKCU:\Software\Classes\$ProtocolName"
 
 # Create protocol key
 New-Item -Path $RegPath -Force | Out-Null
-Set-ItemProperty -Path $RegPath -Name "(Default)" -Value "URL:Claude Code Notification Protocol"
+Set-ItemProperty -Path $RegPath -Name "(Default)" -Value "URL:cc-notification Protocol"
 Set-ItemProperty -Path $RegPath -Name "URL Protocol" -Value ""
 
 # Default icon

@@ -1,10 +1,10 @@
-# Windows Notification Script for Claude Code
-# Supports Claude Code hook integration, manual testing, and direct execution
+# Windows Notification Script for cc-notification
+# Supports hook integration, manual testing, and direct execution
 # Priority order: JsonInput -> Stdin -> Default, with Title/Message force override
 
 param(
     # Manual JSON input for testing/debugging (highest priority)
-    # Example: -JsonInput '{"hook_event_name":"Notification","title":"Claude Code","message":"Task completed","session_id":"abc123","transcript_path":"/path"}'
+    # Example: -JsonInput '{"hook_event_name":"Notification","title":"cc-notification","message":"Task completed","session_id":"abc123","transcript_path":"/path"}'
     [string]$JsonInput = "",
     
     # Force override: Custom notification title (overrides parsed title if specified)
@@ -115,7 +115,7 @@ function Send-ToastNotification {
         $XmlDoc = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime]::new()
         $XmlDoc.LoadXml($ToastXml)
 
-        $AppId = "Anthropic.ClaudeCode"
+        $AppId = "cc-notification"
         $Notifier = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]::CreateToastNotifier($AppId)
         $Toast = [Windows.UI.Notifications.ToastNotification]::new($XmlDoc)
         $Notifier.Show($Toast)
@@ -283,19 +283,19 @@ function Get-ToolPreview {
     return $Preview
 }
 
-# Parses JSON input from Claude Code hooks (Notification, Stop, and PermissionRequest events)
+# Parses JSON input from hook events (Notification, Stop, and PermissionRequest)
 # Detects hook type and extracts appropriate data for notification display
 # Parameters:
-#   $JsonInput - JSON string from Claude Code hook
+#   $JsonInput - JSON string from hook event
 # Expected formats:
-#   Notification: {"hook_event_name":"Notification","title":"Claude Code","message":"Task completed","session_id":"abc123","transcript_path":"/path"}
+#   Notification: {"hook_event_name":"Notification","title":"cc-notification","message":"Task completed","session_id":"abc123","transcript_path":"/path"}
 #   Stop: {"hook_event_name":"Stop","stop_hook_active":false,"session_id":"abc123","transcript_path":"/path"}
 # Returns: Hashtable with parsed notification data and metadata
-function Parse-ClaudeCodeHookInput {
+function Parse-HookInput {
     param([string]$JsonInput)
     
     # Initialize with defaults
-    $ParsedTitle = "Claude Code"
+    $ParsedTitle = "cc-notification"
     $ParsedMessage = "Notification"
     $ParsedDetail = $null
     $HookType = "Unknown"
@@ -316,14 +316,14 @@ function Parse-ClaudeCodeHookInput {
                 switch ($EventName) {
                     "Notification" {
                         $HookType = "Notification"
-                        $ParsedTitle = "Claude Code"
+                        $ParsedTitle = "cc-notification"
                         $ParsedMessage = if ($HookData.message) { $HookData.message } else { "Notification" }
                         
                         Write-DebugLog "Detected $EventName hook - Title: '$ParsedTitle', Message: '$ParsedMessage'"
                     }
                     "Stop" {
                         $HookType = "Stop"
-                        $ParsedTitle = "Claude Code"
+                        $ParsedTitle = "cc-notification"
                         $ParsedMessage = "Session completed"
 
                         if ($HookData.PSObject.Properties.Name -contains "stop_hook_active" -and $HookData.stop_hook_active) {
@@ -345,7 +345,7 @@ function Parse-ClaudeCodeHookInput {
                     }
                     default {
                         $HookType = $EventName
-                        $ParsedTitle = "Claude Code"
+                        $ParsedTitle = "cc-notification"
                         $ParsedMessage = "Event: $EventName"
                         
                         if ($HookData.message) {
@@ -359,7 +359,7 @@ function Parse-ClaudeCodeHookInput {
             else {
                 # No hook_event_name field - fallback for manual testing
                 $HookType = "Manual"
-                $ParsedTitle = if ($HookData.title) { $HookData.title } else { "Claude Code" }
+                $ParsedTitle = if ($HookData.title) { $HookData.title } else { "cc-notification" }
                 $ParsedMessage = if ($HookData.message) { $HookData.message } else { "Manual notification" }
                 
                 Write-DebugLog "Detected manual notification - Title: '$ParsedTitle', Message: '$ParsedMessage'"
@@ -384,7 +384,7 @@ function Parse-ClaudeCodeHookInput {
             }
         }
         catch {
-            Write-DebugLog "Failed to parse Claude Code hook input: $($_.Exception.Message)"
+            Write-DebugLog "Failed to parse hook input: $($_.Exception.Message)"
             Write-Host "Using default notification"
         }
     }
@@ -405,7 +405,7 @@ function Parse-ClaudeCodeHookInput {
 Write-DebugLog "=== Notification Script Started ==="
 Write-DebugLog "Parameters: JsonInput='$JsonInput', Title='$Title', Message='$Message'"
 
-# Check if input is available from stdin (Claude Code hook mode)
+# Check if input is available from stdin (hook mode)
 $StdinInput = ""
 if (-not [Console]::IsInputRedirected -eq $false) {
     try {
@@ -426,14 +426,14 @@ if (-not [Console]::IsInputRedirected -eq $false) {
 if ($JsonInput -ne "") {
     # Manual JSON input mode (for testing) - Highest priority
     Write-DebugLog "Manual JSON input mode (highest priority)"
-    $NotificationInfo = Parse-ClaudeCodeHookInput -JsonInput $JsonInput
+    $NotificationInfo = Parse-HookInput -JsonInput $JsonInput
     $FinalTitle = $NotificationInfo.Title
     $FinalMessage = $NotificationInfo.Message
     $FinalDetail = $NotificationInfo.Detail
 } elseif ($StdinInput -ne "") {
-    # Claude Code hook mode (stdin input) - Second priority
-    Write-DebugLog "Claude Code hook mode detected (stdin input)"
-    $NotificationInfo = Parse-ClaudeCodeHookInput -JsonInput $StdinInput
+    # Hook mode (stdin input) - Second priority
+    Write-DebugLog "Hook mode detected (stdin input)"
+    $NotificationInfo = Parse-HookInput -JsonInput $StdinInput
     $FinalTitle = $NotificationInfo.Title
     $FinalMessage = $NotificationInfo.Message
     $FinalDetail = $NotificationInfo.Detail
@@ -441,7 +441,7 @@ if ($JsonInput -ne "") {
     Write-DebugLog "Default notification (no JSON input provided)"
 
     # Default mode - Lowest priority
-    $FinalTitle = "Claude Code"
+    $FinalTitle = "cc-notification"
     $FinalMessage = "Notification"
     $FinalDetail = $null
 }

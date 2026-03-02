@@ -1,7 +1,7 @@
-# Claude Code Windows Notification Hook
+# cc-notification — Windows Desktop Notification Hook
 
-A PowerShell script that displays Claude Code notifications as Windows desktop notifications from WSL.
-Integrates with Claude Code's `Notification` and `Stop` hook system to provide native Windows notifications.
+A PowerShell-based plugin that displays hook notifications as Windows desktop toasts.
+Integrates with the `Notification`, `Stop`, and `PermissionRequest` hook events to provide native Windows notifications.
 
 ## Files
 
@@ -9,8 +9,8 @@ Integrates with Claude Code's `Notification` and `Stop` hook system to provide n
 - `scripts/focus-handler.ps1` - Protocol handler that focuses the terminal window on notification click
 - `scripts/register-protocol.ps1` - One-time setup to register the `claude-notify://` protocol
 - `scripts/launch-hidden.vbs` - VBScript wrapper to launch the focus handler without a visible window
-- `.claude-plugin/plugin.json` - Claude Code plugin manifest
-- `hooks/hooks.json` - Hook definitions for Notification and Stop events
+- `.claude-plugin/plugin.json` - Plugin manifest
+- `hooks/hooks.json` - Hook definitions for Notification, Stop, and PermissionRequest events
 
 ## Requirements
 
@@ -21,9 +21,7 @@ Integrates with Claude Code's `Notification` and `Stop` hook system to provide n
 
 ## Installation
 
-### Option 1: Claude Code Plugin (Recommended)
-
-Install as a plugin using the Claude Code CLI:
+### Option 1: Plugin (Recommended)
 
 ```bash
 # Add this repo as a marketplace
@@ -33,11 +31,11 @@ claude plugin marketplace add kmio11/cc-notification
 claude plugin install cc-notification
 ```
 
-The plugin automatically registers `Notification` and `Stop` hooks — no manual configuration needed.
+The plugin automatically registers `Notification`, `Stop`, and `PermissionRequest` hooks — no manual configuration needed.
 
 ### Option 2: Manual Hook Configuration
 
-If you prefer manual setup, add to your Claude Code settings file (`~/.claude/settings.json`):
+If you prefer manual setup, add to your settings file (`~/.claude/settings.json`):
 
 ```json
 {
@@ -68,7 +66,7 @@ If you prefer manual setup, add to your Claude Code settings file (`~/.claude/se
 }
 ```
 
-Refer to the [Claude Code hooks documentation](https://docs.anthropic.com/en/docs/claude-code/hooks) for more details.
+Refer to the [hooks documentation](https://docs.anthropic.com/en/docs/claude-code/hooks) for more details.
 
 ## Setup
 
@@ -90,18 +88,18 @@ If the protocol is not registered, notifications still work normally — they ju
 
 ### Direct Execution and Testing
 
-**Input Priority**: JsonInput → Stdin → Default  
+**Input Priority**: JsonInput → Stdin → Default
 **Override Rule**: Title/Message parameters force override regardless of input source
 
 ```bash
 # Default notification (lowest priority)
 powershell.exe -File "/path/to/toast-notification.ps1"
 
-# Manual JSON input (highest priority) 
+# Manual JSON input (highest priority)
 powershell.exe -File "/path/to/toast-notification.ps1" -JsonInput '{"title":"Test","message":"JSON test"}'
 
-# Stdin input (Claude Code hook simulation)
-echo '{"hook_event_name":"Notification","title":"Claude Code","message":"Hook message"}' | powershell.exe -File "/path/to/toast-notification.ps1"
+# Stdin input (hook simulation)
+echo '{"hook_event_name":"Notification","title":"cc-notification","message":"Hook message"}' | powershell.exe -File "/path/to/toast-notification.ps1"
 
 # Force override examples
 # Override Stop hook message
@@ -116,7 +114,7 @@ echo '{"hook_event_name":"Notification","title":"Original","message":"Keep this"
 The script uses a robust fallback chain to ensure reliable notification delivery:
 
 ### 1. Primary Method: Windows Toast Notifications
-- Uses Windows Runtime API with `Anthropic.ClaudeCode` AppID
+- Uses Windows Runtime API with `cc-notification` AppID
 - Appears in Windows Action Center with modern toast styling
 - Persistent in Action Center until dismissed
 
