@@ -279,6 +279,7 @@ function Parse-ClaudeCodeHookInput {
     # Initialize with defaults
     $ParsedTitle = "Claude Code"
     $ParsedMessage = "Notification"
+    $ParsedDetail = $null
     $HookType = "Unknown"
     
     if ($JsonInput -ne "") {
@@ -306,12 +307,23 @@ function Parse-ClaudeCodeHookInput {
                         $HookType = "Stop"
                         $ParsedTitle = "Claude Code"
                         $ParsedMessage = "Session completed"
-                        
+
                         if ($HookData.PSObject.Properties.Name -contains "stop_hook_active" -and $HookData.stop_hook_active) {
                             $ParsedMessage = "Session continuing from previous stop"
                         }
-                        
+
                         Write-DebugLog "Detected $EventName hook - Message: '$ParsedMessage'"
+                    }
+                    "PermissionRequest" {
+                        $HookType = "PermissionRequest"
+                        $ToolName = if ($HookData.tool_name) { $HookData.tool_name } else { "Tool" }
+                        $Preview = Get-ToolPreview -ToolName $ToolName -ToolInput $HookData.tool_input
+
+                        $ParsedTitle = [char]0x1F512 + " Permission Required"
+                        $ParsedMessage = $ToolName
+                        $ParsedDetail = $Preview
+
+                        Write-DebugLog "Detected $EventName hook - Tool: '$ToolName', Preview: '$Preview'"
                     }
                     default {
                         $HookType = $EventName
@@ -346,6 +358,7 @@ function Parse-ClaudeCodeHookInput {
             return @{
                 Title = $ParsedTitle
                 Message = $ParsedMessage
+                Detail = $ParsedDetail
                 HookType = $HookType
                 SessionId = $HookData.session_id
                 TranscriptPath = $HookData.transcript_path
@@ -362,6 +375,7 @@ function Parse-ClaudeCodeHookInput {
     return @{
         Title = $ParsedTitle
         Message = $ParsedMessage
+        Detail = $null
         HookType = $HookType
         SessionId = $null
         TranscriptPath = $null
