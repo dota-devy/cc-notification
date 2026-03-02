@@ -1,5 +1,5 @@
-# Windows Notification Script for cc-notification
-# Supports hook integration, manual testing, and direct execution
+# Windows Notification Script for Claude Code
+# Supports Claude Code hook integration, manual testing, and direct execution
 # Priority order: JsonInput -> Stdin -> Default, with Title/Message force override
 
 param(
@@ -283,10 +283,10 @@ function Get-ToolPreview {
     return $Preview
 }
 
-# Parses JSON input from hook events (Notification, Stop, and PermissionRequest)
+# Parses JSON input from Claude Code hook events (Notification, Stop, and PermissionRequest)
 # Detects hook type and extracts appropriate data for notification display
 # Parameters:
-#   $JsonInput - JSON string from hook event
+#   $JsonInput - JSON string from Claude Code hook
 # Expected formats:
 #   Notification: {"hook_event_name":"Notification","title":"cc-notification","message":"Task completed","session_id":"abc123","transcript_path":"/path"}
 #   Stop: {"hook_event_name":"Stop","stop_hook_active":false,"session_id":"abc123","transcript_path":"/path"}
@@ -405,7 +405,7 @@ function Parse-HookInput {
 Write-DebugLog "=== Notification Script Started ==="
 Write-DebugLog "Parameters: JsonInput='$JsonInput', Title='$Title', Message='$Message'"
 
-# Check if input is available from stdin (hook mode)
+# Check if input is available from stdin (Claude Code hook mode)
 $StdinInput = ""
 if (-not [Console]::IsInputRedirected -eq $false) {
     try {
@@ -431,8 +431,8 @@ if ($JsonInput -ne "") {
     $FinalMessage = $NotificationInfo.Message
     $FinalDetail = $NotificationInfo.Detail
 } elseif ($StdinInput -ne "") {
-    # Hook mode (stdin input) - Second priority
-    Write-DebugLog "Hook mode detected (stdin input)"
+    # Claude Code hook mode (stdin input) - Second priority
+    Write-DebugLog "Claude Code hook mode detected (stdin input)"
     $NotificationInfo = Parse-HookInput -JsonInput $StdinInput
     $FinalTitle = $NotificationInfo.Title
     $FinalMessage = $NotificationInfo.Message

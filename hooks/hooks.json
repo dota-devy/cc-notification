@@ -1,5 +1,5 @@
 {
-  "description": "Windows desktop notifications for hook events including permission requests",
+  "description": "Windows desktop notifications for Claude Code events including permission requests",
   "hooks": {
     "Notification": [
       {

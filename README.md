@@ -1,7 +1,7 @@
-# cc-notification — Windows Desktop Notification Hook
+# cc-notification — Windows Desktop Notifications for Claude Code
 
-A PowerShell-based plugin that displays hook notifications as Windows desktop toasts.
-Integrates with the `Notification`, `Stop`, and `PermissionRequest` hook events to provide native Windows notifications.
+A PowerShell-based plugin that displays Claude Code notifications as Windows desktop toasts.
+Integrates with Claude Code's `Notification`, `Stop`, and `PermissionRequest` hook events to provide native Windows notifications with click-to-focus support.
 
 ## Files
 
@@ -9,7 +9,7 @@ Integrates with the `Notification`, `Stop`, and `PermissionRequest` hook events 
 - `scripts/focus-handler.ps1` - Protocol handler that focuses the terminal window on notification click
 - `scripts/register-protocol.ps1` - One-time setup to register the `claude-notify://` protocol
 - `scripts/launch-hidden.vbs` - VBScript wrapper to launch the focus handler without a visible window
-- `.claude-plugin/plugin.json` - Plugin manifest
+- `.claude-plugin/plugin.json` - Claude Code plugin manifest
 - `hooks/hooks.json` - Hook definitions for Notification, Stop, and PermissionRequest events
 
 ## Requirements
@@ -21,7 +21,9 @@ Integrates with the `Notification`, `Stop`, and `PermissionRequest` hook events 
 
 ## Installation
 
-### Option 1: Plugin (Recommended)
+### Option 1: Claude Code Plugin (Recommended)
+
+Install as a plugin using the Claude Code CLI:
 
 ```bash
 # Add this repo as a marketplace
@@ -35,7 +37,7 @@ The plugin automatically registers `Notification`, `Stop`, and `PermissionReques
 
 ### Option 2: Manual Hook Configuration
 
-If you prefer manual setup, add to your settings file (`~/.claude/settings.json`):
+If you prefer manual setup, add to your Claude Code settings file (`~/.claude/settings.json`):
 
 ```json
 {
@@ -66,7 +68,7 @@ If you prefer manual setup, add to your settings file (`~/.claude/settings.json`
 }
 ```
 
-Refer to the [hooks documentation](https://docs.anthropic.com/en/docs/claude-code/hooks) for more details.
+Refer to the [Claude Code hooks documentation](https://docs.anthropic.com/en/docs/claude-code/hooks) for more details.
 
 ## Setup
 
@@ -98,8 +100,8 @@ powershell.exe -File "/path/to/toast-notification.ps1"
 # Manual JSON input (highest priority)
 powershell.exe -File "/path/to/toast-notification.ps1" -JsonInput '{"title":"Test","message":"JSON test"}'
 
-# Stdin input (hook simulation)
-echo '{"hook_event_name":"Notification","title":"cc-notification","message":"Hook message"}' | powershell.exe -File "/path/to/toast-notification.ps1"
+# Stdin input (Claude Code hook simulation)
+echo '{"hook_event_name":"Notification","message":"Hook message"}' | powershell.exe -File "/path/to/toast-notification.ps1"
 
 # Force override examples
 # Override Stop hook message
