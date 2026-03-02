@@ -11,6 +11,7 @@ if ($Uri -match '[?&]pid=(\d+)') {
 }
 
 if (-not $TargetPid) {
+    Write-Host "focus-handler: no PID found in URI: $Uri"
     exit 1
 }
 
@@ -47,8 +48,8 @@ public class WindowFocusHelper {
         IntPtr foregroundHwnd = GetForegroundWindow();
         if (foregroundHwnd == targetHwnd) return true;
 
-        uint foregroundThreadId;
-        GetWindowThreadProcessId(foregroundHwnd, out foregroundThreadId);
+        uint foregroundPid;
+        uint foregroundThreadId = GetWindowThreadProcessId(foregroundHwnd, out foregroundPid);
         uint currentThreadId = GetCurrentThreadId();
 
         if (foregroundThreadId != currentThreadId) {
@@ -73,6 +74,7 @@ public class WindowFocusHelper {
 # Find the process and focus its window
 $proc = Get-Process -Id $TargetPid -ErrorAction SilentlyContinue
 if (-not $proc -or $proc.MainWindowHandle -eq [IntPtr]::Zero) {
+    Write-Host "focus-handler: process $TargetPid not found or has no window"
     exit 1
 }
 
