@@ -41,32 +41,80 @@ function Write-DebugLog {
     }
 }
 
+# Checks if the claude-notify:// protocol handler is registered
+# Returns: $true if registered, $false otherwise
+function Test-ProtocolRegistered {
+    return Test-Path "HKCU:\Software\Classes\claude-notify\shell\open\command"
+}
+
 # Sends a Windows toast notification using Windows Runtime API
-# Uses Anthropic.ClaudeCode AppID for proper identification in Action Center
+# If the claude-notify:// protocol is registered and a terminal PID is provided,
+# the notification becomes clickable and will focus the terminal on click.
 # Parameters:
-#   $Title   - Notification title text
-#   $Message - Notification message text
+#   $Title      - Notification title text
+#   $Message    - Notification message text
+#   $TerminalPid - (Optional) PID of the parent terminal for click-to-focus
 # Returns: $true if successful, $false if failed
 function Send-ToastNotification {
-    param([string]$Title, [string]$Message)
-    
+    param(
+        [string]$Title,
+        [string]$Message,
+        [int]$TerminalPid = 0
+    )
+
     try {
+        # Determine if click-to-focus is available
+        $ProtocolRegistered = Test-ProtocolRegistered
+        $CanFocus = $ProtocolRegistered -and $TerminalPid -gt 0
+
+        # Escape XML special characters in title and message
+        $EscTitle = [System.Security.SecurityElement]::Escape($Title)
+        $EscMessage = [System.Security.SecurityElement]::Escape($Message)
+
+        if ($CanFocus) {
+            $LaunchUri = "claude-notify://focus?pid=$TerminalPid"
+
+            $ToastXml = @"
+<toast activationType="protocol" launch="$LaunchUri">
+  <visual>
+    <binding template="ToastGeneric">
+      <text>$EscTitle</text>
+      <text>$EscMessage</text>
+    </binding>
+  </visual>
+</toast>
+"@
+            Write-DebugLog "Using protocol activation: $LaunchUri"
+        } else {
+            $ToastXml = @"
+<toast>
+  <visual>
+    <binding template="ToastGeneric">
+      <text>$EscTitle</text>
+      <text>$EscMessage</text>
+    </binding>
+  </visual>
+</toast>
+"@
+            if (-not $ProtocolRegistered) {
+                Write-DebugLog "Protocol not registered - toast will not be clickable. Run register-protocol.ps1 to enable click-to-focus."
+            }
+        }
+
+        $XmlDoc = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime]::new()
+        $XmlDoc.LoadXml($ToastXml)
+
         $AppId = "Anthropic.ClaudeCode"
-        
-        $template = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType, Windows.UI.Notifications, ContentType = WindowsRuntime]::ToastText02)
-        
-        $template.GetElementsByTagName("text").Item(0).InnerText = $Title
-        $template.GetElementsByTagName("text").Item(1).InnerText = $Message
-        
-        $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($AppId)
-        $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
-        $notifier.Show($toast)
-        
-        Write-Host "✓ Toast notification sent successfully"
+        $Notifier = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]::CreateToastNotifier($AppId)
+        $Toast = [Windows.UI.Notifications.ToastNotification]::new($XmlDoc)
+        $Notifier.Show($Toast)
+
+        $FocusStatus = if ($CanFocus) { " (click to focus terminal)" } else { "" }
+        Write-Host "Toast notification sent$FocusStatus"
         return $true
     }
     catch {
-        Write-Host "✗ Toast notification failed: $($_.Exception.Message)"
+        Write-Host "Toast notification failed: $($_.Exception.Message)"
         return $false
     }
 }
@@ -99,6 +147,46 @@ function Send-BalloonNotification {
         Write-Host "✗ Balloon notification failed: $($_.Exception.Message)"
         return $false
     }
+}
+
+# Walks up the process tree from the current process to find the parent terminal window
+# Checks for Windows Terminal, VS Code, ConHost, and standalone PowerShell windows
+# Returns: Hashtable with ProcessId, ProcessName, MainWindowHandle, or $null if not found
+function Find-ParentTerminal {
+    $TerminalProcessNames = @(
+        "WindowsTerminal"
+        "Code"
+        "conhost"
+    )
+
+    $CurrentPid = $PID
+    $Visited = @{}
+
+    while ($CurrentPid -and $CurrentPid -ne 0 -and -not $Visited.ContainsKey($CurrentPid)) {
+        $Visited[$CurrentPid] = $true
+
+        $Proc = Get-Process -Id $CurrentPid -ErrorAction SilentlyContinue
+        if (-not $Proc) { break }
+
+        if ($Proc.MainWindowHandle -ne [IntPtr]::Zero -and
+            $TerminalProcessNames -contains $Proc.ProcessName) {
+            Write-DebugLog "Found parent terminal: $($Proc.ProcessName) (PID $($Proc.Id))"
+            return @{
+                ProcessId = $Proc.Id
+                ProcessName = $Proc.ProcessName
+                MainWindowHandle = $Proc.MainWindowHandle
+            }
+        }
+
+        # Get parent PID via CIM
+        $CimProc = Get-CimInstance Win32_Process -Filter "ProcessId = $CurrentPid" -ErrorAction SilentlyContinue
+        if (-not $CimProc) { break }
+
+        $CurrentPid = $CimProc.ParentProcessId
+    }
+
+    Write-DebugLog "No parent terminal found in process tree"
+    return $null
 }
 
 # Parses JSON input from Claude Code hooks (Notification and Stop events)
@@ -262,16 +350,20 @@ if ($Title -ne "" -or $Message -ne "") {
     }
 }
 
+# Find the parent terminal for click-to-focus
+$Terminal = Find-ParentTerminal
+$TerminalPid = if ($Terminal) { $Terminal.ProcessId } else { 0 }
+
 # Main notification flow with clear fallback chain
-Write-DebugLog "Final notification - Title: '$FinalTitle', Message: '$FinalMessage'"
+Write-DebugLog "Final notification - Title: '$FinalTitle', Message: '$FinalMessage', TerminalPID: $TerminalPid"
 
 # Try Toast notification first (primary method)
-if (Send-ToastNotification -Title $FinalTitle -Message $FinalMessage) {
+if (Send-ToastNotification -Title $FinalTitle -Message $FinalMessage -TerminalPid $TerminalPid) {
     Write-DebugLog "Toast notification succeeded"
     exit 0
 }
 
-Write-Host "→ Falling back to balloon notification..."
+Write-Host "Falling back to balloon notification..."
 Write-DebugLog "Toast failed, trying balloon notification"
 
 # Try Balloon notification (fallback method)
@@ -281,6 +373,6 @@ if (Send-BalloonNotification -Title $FinalTitle -Message $FinalMessage) {
 }
 
 # All methods failed
-Write-Host "✗ All notification methods failed"
+Write-Host "All notification methods failed"
 Write-DebugLog "All notification methods failed"
 exit 1
