@@ -326,7 +326,7 @@ function Parse-ClaudeCodeHookInput {
                         $ToolName = if ($HookData.tool_name) { $HookData.tool_name } else { "Tool" }
                         $Preview = Get-ToolPreview -ToolName $ToolName -ToolInput $HookData.tool_input
 
-                        $ParsedTitle = [char]0x1F512 + " Permission Required"
+                        $ParsedTitle = [char]::ConvertFromUtf32(0x1F512) + " Permission Required"
                         $ParsedMessage = $ToolName
                         $ParsedDetail = $Preview
 
