@@ -73,9 +73,10 @@ function Send-ToastNotification {
 
         if ($CanFocus) {
             $LaunchUri = "claude-notify://focus?pid=$TerminalPid"
+            $EscLaunchUri = [System.Security.SecurityElement]::Escape($LaunchUri)
 
             $ToastXml = @"
-<toast activationType="protocol" launch="$LaunchUri">
+<toast activationType="protocol" launch="$EscLaunchUri">
   <visual>
     <binding template="ToastGeneric">
       <text>$EscTitle</text>
@@ -98,6 +99,8 @@ function Send-ToastNotification {
 "@
             if (-not $ProtocolRegistered) {
                 Write-DebugLog "Protocol not registered - toast will not be clickable. Run register-protocol.ps1 to enable click-to-focus."
+            } elseif ($TerminalPid -eq 0) {
+                Write-DebugLog "Protocol registered but no parent terminal found - toast will not be clickable."
             }
         }
 
