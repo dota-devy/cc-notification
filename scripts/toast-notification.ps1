@@ -59,6 +59,7 @@ function Send-ToastNotification {
     param(
         [string]$Title,
         [string]$Message,
+        [string]$Detail = "",
         [int]$TerminalPid = 0
     )
 
@@ -71,6 +72,12 @@ function Send-ToastNotification {
         $EscTitle = [System.Security.SecurityElement]::Escape($Title)
         $EscMessage = [System.Security.SecurityElement]::Escape($Message)
 
+        $DetailXml = ""
+        if ($Detail -ne "") {
+            $EscDetail = [System.Security.SecurityElement]::Escape($Detail)
+            $DetailXml = "`n      <text>$EscDetail</text>"
+        }
+
         if ($CanFocus) {
             $LaunchUri = "claude-notify://focus?pid=$TerminalPid&shellpid=$ShellPid"
             $EscLaunchUri = [System.Security.SecurityElement]::Escape($LaunchUri)
@@ -80,7 +87,7 @@ function Send-ToastNotification {
   <visual>
     <binding template="ToastGeneric">
       <text>$EscTitle</text>
-      <text>$EscMessage</text>
+      <text>$EscMessage</text>$DetailXml
     </binding>
   </visual>
 </toast>
@@ -92,7 +99,7 @@ function Send-ToastNotification {
   <visual>
     <binding template="ToastGeneric">
       <text>$EscTitle</text>
-      <text>$EscMessage</text>
+      <text>$EscMessage</text>$DetailXml
     </binding>
   </visual>
 </toast>
@@ -411,18 +418,21 @@ if ($JsonInput -ne "") {
     $NotificationInfo = Parse-ClaudeCodeHookInput -JsonInput $JsonInput
     $FinalTitle = $NotificationInfo.Title
     $FinalMessage = $NotificationInfo.Message
+    $FinalDetail = $NotificationInfo.Detail
 } elseif ($StdinInput -ne "") {
     # Claude Code hook mode (stdin input) - Second priority
     Write-DebugLog "Claude Code hook mode detected (stdin input)"
     $NotificationInfo = Parse-ClaudeCodeHookInput -JsonInput $StdinInput
     $FinalTitle = $NotificationInfo.Title
     $FinalMessage = $NotificationInfo.Message
+    $FinalDetail = $NotificationInfo.Detail
 } else {
     Write-DebugLog "Default notification (no JSON input provided)"
 
     # Default mode - Lowest priority
     $FinalTitle = "Claude Code"
     $FinalMessage = "Notification"
+    $FinalDetail = $null
 }
 
 # Override with Title/Message parameters if specified (force override)
@@ -449,7 +459,7 @@ $ShellPid = if ($Terminal) { $Terminal.ShellPid } else { 0 }
 Write-DebugLog "Final notification - Title: '$FinalTitle', Message: '$FinalMessage', TerminalPID: $TerminalPid, ShellPID: $ShellPid"
 
 # Try Toast notification first (primary method)
-if (Send-ToastNotification -Title $FinalTitle -Message $FinalMessage -TerminalPid $TerminalPid) {
+if (Send-ToastNotification -Title $FinalTitle -Message $FinalMessage -Detail $FinalDetail -TerminalPid $TerminalPid) {
     Write-DebugLog "Toast notification succeeded"
     exit 0
 }
