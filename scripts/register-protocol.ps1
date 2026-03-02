@@ -4,9 +4,15 @@
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $HandlerScript = Join-Path $ScriptDir "focus-handler.ps1"
+$LauncherScript = Join-Path $ScriptDir "launch-hidden.vbs"
 
 if (-not (Test-Path $HandlerScript)) {
     Write-Host "Error: focus-handler.ps1 not found at $HandlerScript"
+    exit 1
+}
+
+if (-not (Test-Path $LauncherScript)) {
+    Write-Host "Error: launch-hidden.vbs not found at $LauncherScript"
     exit 1
 }
 
@@ -22,9 +28,9 @@ Set-ItemProperty -Path $RegPath -Name "URL Protocol" -Value ""
 New-Item -Path "$RegPath\DefaultIcon" -Force | Out-Null
 Set-ItemProperty -Path "$RegPath\DefaultIcon" -Name "(Default)" -Value "powershell.exe,0"
 
-# Shell open command — launches focus-handler.ps1 with the URI
+# Shell open command — uses VBScript wrapper to launch PowerShell truly hidden (no window flash)
 New-Item -Path "$RegPath\shell\open\command" -Force | Out-Null
-$Command = "`"powershell.exe`" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$HandlerScript`" `"%1`""
+$Command = "`"wscript.exe`" `"$LauncherScript`" `"$HandlerScript`" `"%1`""
 Set-ItemProperty -Path "$RegPath\shell\open\command" -Name "(Default)" -Value $Command
 
 Write-Host "Protocol 'claude-notify://' registered successfully."

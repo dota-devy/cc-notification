@@ -143,11 +143,11 @@ function Send-BalloonNotification {
         $balloon.Visible = $true
         $balloon.ShowBalloonTip(5000)
         
-        Write-Host "✓ Balloon notification sent successfully"
+        Write-Host "Balloon notification sent successfully"
         return $true
     }
     catch {
-        Write-Host "✗ Balloon notification failed: $($_.Exception.Message)"
+        Write-Host "Balloon notification failed: $($_.Exception.Message)"
         return $false
     }
 }

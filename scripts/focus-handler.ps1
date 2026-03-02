@@ -4,6 +4,13 @@
 
 param([string]$Uri)
 
+# Debug log (same location as toast-notification.ps1 debug log)
+$LogPath = Join-Path $env:TEMP "cc-notification-focus.log"
+function Write-Log { param([string]$Msg); "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff') - $Msg" | Out-File -FilePath $LogPath -Append -Encoding UTF8 }
+
+Write-Log "=== Focus handler invoked ==="
+Write-Log "URI: $Uri"
+
 # Parse the URI to extract the PID
 $TargetPid = $null
 if ($Uri -match '[?&]pid=(\d+)') {
@@ -11,7 +18,7 @@ if ($Uri -match '[?&]pid=(\d+)') {
 }
 
 if (-not $TargetPid) {
-    Write-Host "focus-handler: no PID found in URI: $Uri"
+    Write-Log "No PID found in URI"
     exit 1
 }
 
@@ -73,10 +80,18 @@ public class WindowFocusHelper {
 
 # Find the process and focus its window
 $proc = Get-Process -Id $TargetPid -ErrorAction SilentlyContinue
-if (-not $proc -or $proc.MainWindowHandle -eq [IntPtr]::Zero) {
-    Write-Host "focus-handler: process $TargetPid not found or has no window"
+if (-not $proc) {
+    Write-Log "Process $TargetPid not found"
     exit 1
 }
 
-[WindowFocusHelper]::ForceForeground($proc.MainWindowHandle) | Out-Null
+Write-Log "Process found: $($proc.ProcessName), MainWindowHandle: $($proc.MainWindowHandle), Title: '$($proc.MainWindowTitle)'"
+
+if ($proc.MainWindowHandle -eq [IntPtr]::Zero) {
+    Write-Log "Process has no main window handle"
+    exit 1
+}
+
+$result = [WindowFocusHelper]::ForceForeground($proc.MainWindowHandle)
+Write-Log "ForceForeground result: $result"
 exit 0
