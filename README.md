@@ -8,6 +8,7 @@ Integrates with Claude Code's `Notification` and `Stop` hook system to provide n
 - `scripts/toast-notification.ps1` - PowerShell script that displays Windows notifications with fallback chain
 - `scripts/focus-handler.ps1` - Protocol handler that focuses the terminal window on notification click
 - `scripts/register-protocol.ps1` - One-time setup to register the `claude-notify://` protocol
+- `scripts/launch-hidden.vbs` - VBScript wrapper to launch the focus handler without a visible window
 - `.claude-plugin/plugin.json` - Claude Code plugin manifest
 - `hooks/hooks.json` - Hook definitions for Notification and Stop events
 
