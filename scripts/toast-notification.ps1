@@ -209,7 +209,63 @@ function Find-ParentTerminal {
     return $null
 }
 
-# Parses JSON input from Claude Code hooks (Notification and Stop events)
+# Extracts a human-readable command preview from a PermissionRequest's tool_input
+# Parameters:
+#   $ToolName  - The tool being requested (e.g., "Bash", "Write", "Edit")
+#   $ToolInput - The tool_input object from the hook JSON
+# Returns: A preview string truncated to ~120 characters
+function Get-ToolPreview {
+    param(
+        [string]$ToolName,
+        [object]$ToolInput
+    )
+
+    $Preview = ""
+
+    if (-not $ToolInput) {
+        return $ToolName
+    }
+
+    switch ($ToolName) {
+        "Bash" {
+            if ($ToolInput.command) {
+                $Preview = $ToolInput.command
+            }
+        }
+        "Write" {
+            if ($ToolInput.file_path) {
+                $Preview = $ToolInput.file_path
+            }
+        }
+        "Edit" {
+            if ($ToolInput.file_path) {
+                $Preview = $ToolInput.file_path
+            }
+        }
+        default {
+            if ($ToolInput.file_path) {
+                $Preview = $ToolInput.file_path
+            } elseif ($ToolInput.path) {
+                $Preview = $ToolInput.path
+            } elseif ($ToolInput.url) {
+                $Preview = $ToolInput.url
+            }
+        }
+    }
+
+    if ($Preview -eq "") {
+        return $ToolName
+    }
+
+    # Truncate long previews
+    if ($Preview.Length -gt 120) {
+        $Preview = $Preview.Substring(0, 117) + "..."
+    }
+
+    return $Preview
+}
+
+# Parses JSON input from Claude Code hooks (Notification, Stop, and PermissionRequest events)
 # Detects hook type and extracts appropriate data for notification display
 # Parameters:
 #   $JsonInput - JSON string from Claude Code hook
