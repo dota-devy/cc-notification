@@ -5,7 +5,9 @@ Integrates with Claude Code's `Notification` and `Stop` hook system to provide n
 
 ## Files
 
-- `toast-notification.ps1` - PowerShell script that displays Windows notifications with fallback chain
+- `scripts/toast-notification.ps1` - PowerShell script that displays Windows notifications with fallback chain
+- `.claude-plugin/plugin.json` - Claude Code plugin manifest
+- `hooks/hooks.json` - Hook definitions for Notification and Stop events
 
 ## Requirements
 
@@ -14,15 +16,25 @@ Integrates with Claude Code's `Notification` and `Stop` hook system to provide n
 - Windows Runtime API (for toast notifications)
 - System.Windows.Forms (.NET Framework)
 
-## Usage
-### 1. Claude Code Notification Hook
+## Installation
 
-The script is designed to work with Claude Code's `Notification` hook, which receives actual notification messages from Claude Code and displays them as Windows notifications.
-Refer [Claude Code hooks documentation](https://docs.anthropic.com/en/docs/claude-code/hooks) for more details.
+### Option 1: Claude Code Plugin (Recommended)
 
-Add to your Claude Code settings file:
+Install as a plugin using the Claude Code CLI:
 
-**For Notification Hook Support:**
+```bash
+# Add this repo as a marketplace
+claude plugin marketplace add kmio11/cc-notification
+
+# Install the plugin
+claude plugin install cc-notification
+```
+
+The plugin automatically registers `Notification` and `Stop` hooks — no manual configuration needed.
+
+### Option 2: Manual Hook Configuration
+
+If you prefer manual setup, add to your Claude Code settings file (`~/.claude/settings.json`):
 
 ```json
 {
@@ -33,29 +45,18 @@ Add to your Claude Code settings file:
         "hooks": [
           {
             "type": "command",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File \"/path/to/toast-notification.ps1\""
+            "command": "powershell.exe -ExecutionPolicy Bypass -File \"/path/to/scripts/toast-notification.ps1\""
           }
         ]
       }
-    ]
-  }
-}
-```
-
-This will intercept all Claude Code notifications and display them as Windows toast notifications instead of (or in addition to) the default notification method.
-
-**For Stop Hook Support:**
-
-```json
-{
-  "hooks": {
+    ],
     "Stop": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "powershell.exe -ExecutionPolicy Bypass -File \"/path/to/cc-utils/toast-notification.ps1\""
+            "command": "powershell.exe -ExecutionPolicy Bypass -File \"/path/to/scripts/toast-notification.ps1\""
           }
         ]
       }
@@ -64,7 +65,11 @@ This will intercept all Claude Code notifications and display them as Windows to
 }
 ```
 
-### 2. Direct Execution and Testing
+Refer to the [Claude Code hooks documentation](https://docs.anthropic.com/en/docs/claude-code/hooks) for more details.
+
+## Usage
+
+### Direct Execution and Testing
 
 **Input Priority**: JsonInput → Stdin → Default  
 **Override Rule**: Title/Message parameters force override regardless of input source
