@@ -77,6 +77,7 @@ function Send-ToastNotification {
             $EscDetail = [System.Security.SecurityElement]::Escape($Detail)
             $DetailXml = "`n      <text>$EscDetail</text>"
         }
+        Write-DebugLog "Toast params - Detail: '$Detail', DetailXml: '$DetailXml'"
 
         if ($CanFocus) {
             $LaunchUri = "claude-notify://focus?pid=$TerminalPid&shellpid=$ShellPid"
@@ -136,20 +137,30 @@ function Send-ToastNotification {
 #   $Message - Notification message text
 # Returns: $true if successful, $false if failed
 function Send-BalloonNotification {
-    param([string]$Title, [string]$Message)
-    
+    param(
+        [string]$Title,
+        [string]$Message,
+        [string]$Detail = ""
+    )
+
     try {
         Add-Type -AssemblyName System.Windows.Forms
         Add-Type -AssemblyName System.Drawing
-        
+
+        # Balloon tips only support Title + Text, so fold Detail into Message
+        $BalloonText = $Message
+        if ($Detail -ne "" -and $Detail -ne $Message) {
+            $BalloonText = "$Message`n$Detail"
+        }
+
         $balloon = New-Object System.Windows.Forms.NotifyIcon
         $balloon.Icon = [System.Drawing.SystemIcons]::Information
         $balloon.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
-        $balloon.BalloonTipText = $Message
+        $balloon.BalloonTipText = $BalloonText
         $balloon.BalloonTipTitle = $Title
         $balloon.Visible = $true
         $balloon.ShowBalloonTip(5000)
-        
+
         Write-Host "Balloon notification sent successfully"
         return $true
     }
@@ -456,7 +467,7 @@ $TerminalPid = if ($Terminal) { $Terminal.ProcessId } else { 0 }
 $ShellPid = if ($Terminal) { $Terminal.ShellPid } else { 0 }
 
 # Main notification flow with clear fallback chain
-Write-DebugLog "Final notification - Title: '$FinalTitle', Message: '$FinalMessage', TerminalPID: $TerminalPid, ShellPID: $ShellPid"
+Write-DebugLog "Final notification - Title: '$FinalTitle', Message: '$FinalMessage', Detail: '$FinalDetail', TerminalPID: $TerminalPid, ShellPID: $ShellPid"
 
 # Try Toast notification first (primary method)
 if (Send-ToastNotification -Title $FinalTitle -Message $FinalMessage -Detail $FinalDetail -TerminalPid $TerminalPid) {
@@ -468,7 +479,7 @@ Write-Host "Falling back to balloon notification..."
 Write-DebugLog "Toast failed, trying balloon notification"
 
 # Try Balloon notification (fallback method)
-if (Send-BalloonNotification -Title $FinalTitle -Message $FinalMessage) {
+if (Send-BalloonNotification -Title $FinalTitle -Message $FinalMessage -Detail $FinalDetail) {
     Write-DebugLog "Balloon notification succeeded"
     exit 0
 }
