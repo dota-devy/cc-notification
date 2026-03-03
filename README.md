@@ -26,8 +26,8 @@ Integrates with Claude Code's `Notification`, `Stop`, and `PermissionRequest` ho
 Install as a plugin using the Claude Code CLI:
 
 ```bash
-# Add this repo as a marketplace
-claude plugin marketplace add kmio11/cc-notification
+# Add this repo as a marketplace (replace <owner> with the GitHub username or org)
+claude plugin marketplace add <owner>/cc-notification
 
 # Install the plugin
 claude plugin install cc-notification
