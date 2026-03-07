@@ -23,6 +23,12 @@ param(
     [string]$DebugLogPath = ""
 )
 
+# Check if notifications are disabled via flag file
+$DisableFlag = Join-Path $env:USERPROFILE ".cc-notification-disabled"
+if (Test-Path $DisableFlag) {
+    exit 0
+}
+
 # Debug logging function - only logs when DebugLogPath is specified
 function Write-DebugLog {
     param([string]$Message)
